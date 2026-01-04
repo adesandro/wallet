@@ -187,8 +187,8 @@ export function Home({ navigate }: { navigate: (to: HomeNav) => void }) {
             <Plus className="h-4 w-4 text-brand-accent" />
             Create account
           </SecondaryButton>
-          <SecondaryButton onClick={() => navigate('send')}>
-            <Send className="h-4 w-4 text-brand-accent" />
+          <SecondaryButton className="group" onClick={() => navigate('send')}>
+            <Send className="h-4 w-4 text-brand-accent group-hover:animate-[planeHover_420ms_ease-out_1]" />
             Send
           </SecondaryButton>
         </div>
@@ -239,8 +239,8 @@ export function Home({ navigate }: { navigate: (to: HomeNav) => void }) {
       </div>
 
       <div className="mt-4">
-        <PrimaryButton onClick={() => navigate('send')}>
-          <Send className="h-4 w-4 text-brand-accent" />
+        <PrimaryButton className="group" onClick={() => navigate('send')}>
+          <Send className="h-4 w-4 text-brand-accent group-hover:animate-[planeHover_420ms_ease-out_1]" />
           New transfer
         </PrimaryButton>
       </div>

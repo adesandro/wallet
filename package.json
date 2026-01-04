@@ -10,16 +10,18 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@scure/bip32": "^2.0.1",
+    "@scure/bip39": "^2.0.1",
     "bs58": "^6.0.0",
     "framer-motion": "^12.23.26",
     "lucide-react": "^0.562.0",
+    "qrcode": "^1.5.4",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
-    "@types/chrome": "^0.1.32",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",

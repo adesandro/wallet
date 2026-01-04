@@ -58,6 +58,26 @@ export async function sealVaultJson(password: string, json: string): Promise<Vau
   };
 }
 
+export async function sealVaultJsonWithKeyB64(env: VaultEnvelopeV1, keyB64: string, json: string): Promise<VaultEnvelopeV1> {
+  if (env?.v !== 1 || env.kdf !== 'pbkdf2-sha256') throw new Error('Unsupported vault format');
+  const saltB64 = env.saltB64;
+  const iter = env.iter;
+  const raw = base64ToBytes(keyB64);
+  if (raw.length !== 32) throw new Error('Invalid vault key');
+  const key = await importAesKey(raw, ['encrypt']);
+  const iv = randomBytes(12);
+  const pt = utf8ToBytes(json);
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: toArrayBuffer(iv) }, key, toArrayBuffer(pt));
+  return {
+    v: 1,
+    kdf: 'pbkdf2-sha256',
+    iter,
+    saltB64,
+    ivB64: bytesToBase64(iv),
+    ctB64: bytesToBase64(ct)
+  };
+}
+
 export async function openVaultJson(password: string, env: VaultEnvelopeV1): Promise<string> {
   if (env?.v !== 1 || env.kdf !== 'pbkdf2-sha256') throw new Error('Unsupported vault format');
   const salt = base64ToBytes(env.saltB64);
@@ -65,8 +85,14 @@ export async function openVaultJson(password: string, env: VaultEnvelopeV1): Pro
   const ct = base64ToBytes(env.ctB64);
   const raw = await deriveVaultKeyRaw(password, salt, env.iter);
   const key = await importAesKey(raw, ['decrypt']);
-  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: toArrayBuffer(iv) }, key, toArrayBuffer(ct));
-  return bytesToUtf8(pt);
+  try {
+    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: toArrayBuffer(iv) }, key, toArrayBuffer(ct));
+    return bytesToUtf8(pt);
+  } catch (e: any) {
+    // WebCrypto throws DOMException(OperationError) on auth failure (wrong password).
+    if (e?.name === 'OperationError') throw new Error('Incorrect password');
+    throw new Error('Unable to decrypt vault');
+  }
 }
 
 export async function deriveVaultKeyRawB64(password: string, env: VaultEnvelopeV1): Promise<string> {
@@ -80,8 +106,13 @@ export async function openVaultJsonWithKeyB64(keyB64: string, env: VaultEnvelope
   const ct = base64ToBytes(env.ctB64);
   const raw = base64ToBytes(keyB64);
   const key = await importAesKey(raw, ['decrypt']);
-  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: toArrayBuffer(iv) }, key, toArrayBuffer(ct));
-  return bytesToUtf8(pt);
+  try {
+    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: toArrayBuffer(iv) }, key, toArrayBuffer(ct));
+    return bytesToUtf8(pt);
+  } catch (e: any) {
+    if (e?.name === 'OperationError') throw new Error('Incorrect password');
+    throw new Error('Unable to decrypt vault');
+  }
 }
 
 

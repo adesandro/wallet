@@ -55,14 +55,17 @@ export function OpenInTabButton() {
   );
 }
 
-export function PrimaryButton(props: React.ButtonHTMLAttributes<HTMLButtonElement> & { loading?: boolean }) {
-  const { className, loading, disabled, children, ...rest } = props;
+export function PrimaryButton(
+  props: React.ButtonHTMLAttributes<HTMLButtonElement> & { loading?: boolean; fullWidth?: boolean }
+) {
+  const { className, loading, disabled, children, fullWidth = true, ...rest } = props;
   return (
     <button
       {...rest}
       disabled={disabled || loading}
       className={[
-        'inline-flex w-full items-center justify-center gap-2 rounded-xl',
+        'inline-flex items-center justify-center gap-2 rounded-xl',
+        fullWidth ? 'w-full' : '',
         'border border-brand-accent/25 bg-brand-accent/10 px-4 py-3 text-sm font-semibold text-gray-100',
         'transition hover:border-brand-accent/45 hover:bg-brand-accent/15 active:translate-y-[1px]',
         'disabled:cursor-not-allowed disabled:opacity-60',
@@ -77,13 +80,14 @@ export function PrimaryButton(props: React.ButtonHTMLAttributes<HTMLButtonElemen
   );
 }
 
-export function SecondaryButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  const { className, children, ...rest } = props;
+export function SecondaryButton(props: React.ButtonHTMLAttributes<HTMLButtonElement> & { fullWidth?: boolean }) {
+  const { className, children, fullWidth = true, ...rest } = props;
   return (
     <button
       {...rest}
       className={[
-        'inline-flex w-full items-center justify-center gap-2 rounded-xl',
+        'inline-flex items-center justify-center gap-2 rounded-xl',
+        fullWidth ? 'w-full' : '',
         'border border-white/10 bg-black/40 px-4 py-3 text-sm font-semibold text-gray-100',
         'transition hover:border-brand-accent/40 hover:bg-black/50 active:translate-y-[1px]',
         className
@@ -118,6 +122,7 @@ export function PasswordInput(props: {
   placeholder?: string;
   autoFocus?: boolean;
   name?: string;
+  error?: boolean;
 }) {
   const [show, setShow] = React.useState(false);
   return (
@@ -129,7 +134,10 @@ export function PasswordInput(props: {
         type={show ? 'text' : 'password'}
         value={props.value}
         onChange={(e) => props.onChange(e.target.value)}
-        className="pr-12"
+        className={[
+          'pr-12',
+          props.error ? 'border-red-500/35 focus:border-red-500/55 focus:ring-red-500/10' : ''
+        ].join(' ')}
       />
       <button
         type="button"

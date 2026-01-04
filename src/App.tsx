@@ -7,6 +7,7 @@ import { Home, type HomeNav } from './screens/Home';
 import { Settings } from './screens/Settings';
 import { Send, type SendDraft } from './screens/Send';
 import { Confirm } from './screens/Confirm';
+import { TabDashboard } from './screens/TabDashboard';
 
 type Route = HomeNav | 'confirm';
 
@@ -23,9 +24,11 @@ function AppInner() {
     return nav;
   }, [wallet.status, nav]);
 
+  const isAuthLike = isTab && (screen === 'loading' || screen === 'onboarding' || screen === 'unlock');
+
   return (
-    <div className={isTab ? 'min-h-screen w-full p-10' : 'min-h-[520px] min-w-[420px] p-4'}>
-      <div className={isTab ? 'mx-auto w-full max-w-2xl' : ''}>
+    <div className={isTab ? 'min-h-screen w-full px-10 pb-10 pt-16' : 'min-h-[520px] min-w-[420px] p-4'}>
+      <div className={isTab ? (isAuthLike ? 'mx-auto w-full max-w-md' : 'w-full') : ''}>
       <AnimatePresence mode="wait">
         {screen === 'loading' ? (
           <div key="loading" className="glow-card gradient-border rounded-2xl p-4">
@@ -38,12 +41,21 @@ function AppInner() {
         {screen === 'unlock' ? <Unlock key="unlock" /> : null}
 
         {screen === 'home' ? (
-          <Home
-            key="home"
-            navigate={(to) => {
-              setNav(to);
-            }}
-          />
+          isTab ? (
+            <TabDashboard
+              key="tab-home"
+              navigate={(to) => {
+                setNav(to);
+              }}
+            />
+          ) : (
+            <Home
+              key="home"
+              navigate={(to) => {
+                setNav(to);
+              }}
+            />
+          )
         ) : null}
 
         {screen === 'settings' ? (

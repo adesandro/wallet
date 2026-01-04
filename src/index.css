@@ -47,6 +47,18 @@ html[data-mode="tab"] .gradient-border::after {
   border-radius: 24px;
 }
 
+/* Micro-interactions */
+@keyframes planeHover {
+  0% { transform: translate3d(0,0,0) rotate(0deg); }
+  60% { transform: translate3d(4px,-2px,0) rotate(-8deg); }
+  100% { transform: translate3d(0,0,0) rotate(0deg); }
+}
+
+@keyframes arrowHover {
+  0% { transform: translate3d(0,0,0); }
+  100% { transform: translate3d(6px,0,0); }
+}
+
 .gradient-border {
   position: relative;
   overflow: hidden;

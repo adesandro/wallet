@@ -137,7 +137,7 @@ export function Confirm({ back, draft, done }: { back: () => void; draft: SendDr
         </PrimaryButton>
       </div>
 
-      <p className="mt-3 text-xs text-gray-500">
+      <p className="mt-3 text-center text-xs text-gray-500">
         Signature is generated locally. Tx id shown in history is a local SHA-256 of the preimage.
       </p>
     </Screen>

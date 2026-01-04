@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, ChevronDown } from 'lucide-react';
+import bs58 from 'bs58';
 import { PrimaryButton, Screen, SecondaryButton, TextInput } from '../ui/components';
 import { useWallet } from '../state/wallet';
 
@@ -28,13 +29,24 @@ export function Send({ back, next }: { back: () => void; next: (draft: SendDraft
   const amount = useMemo(() => Number(amountRaw), [amountRaw]);
   const fee = useMemo(() => Number(feeRaw), [feeRaw]);
 
+  const toIsValid = useMemo(() => {
+    const v = to.trim();
+    if (!v) return false;
+    try {
+      const decoded = bs58.decode(v);
+      return decoded.length === 32;
+    } catch {
+      return false;
+    }
+  }, [to]);
+
   const valid = useMemo(() => {
     if (!fromId) return false;
-    if (!to.trim()) return false;
+    if (!toIsValid) return false;
     if (!Number.isFinite(amount) || amount <= 0) return false;
     if (!Number.isFinite(fee) || fee < 0) return false;
     return true;
-  }, [fromId, to, amount, fee]);
+  }, [fromId, toIsValid, amount, fee]);
 
   const fromAccount = useMemo(() => accounts.find((a) => a.id === fromId) ?? null, [accounts, fromId]);
 
@@ -124,7 +136,18 @@ export function Send({ back, next }: { back: () => void; next: (draft: SendDraft
 
         <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
           <p className="text-[11px] uppercase tracking-[0.18em] text-gray-400">To</p>
-          <TextInput className="mt-2" value={to} onChange={(e) => setTo(e.target.value)} placeholder="Recipient address (base58)" />
+          <TextInput
+            className={[
+              'mt-2',
+              to.length > 0 && !toIsValid ? 'border-red-500/30 focus:border-red-500/50 focus:ring-red-500/10' : ''
+            ].join(' ')}
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+            placeholder="Recipient address (base58)"
+          />
+          {to.length > 0 && !toIsValid ? (
+            <p className="mt-2 text-[11px] text-red-200/80">Invalid address. Expected a base58 public key (32 bytes).</p>
+          ) : null}
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -148,6 +171,7 @@ export function Send({ back, next }: { back: () => void; next: (draft: SendDraft
       <div className="mt-4 grid grid-cols-2 gap-2">
         <SecondaryButton onClick={back}>Cancel</SecondaryButton>
         <PrimaryButton
+          className="group"
           disabled={!valid}
           onClick={() =>
             next({
@@ -160,7 +184,7 @@ export function Send({ back, next }: { back: () => void; next: (draft: SendDraft
           }
         >
           Continue
-          <ArrowRight className="h-4 w-4 text-brand-accent" />
+          <ArrowRight className="h-4 w-4 text-brand-accent transition-transform group-hover:translate-x-1.5" />
         </PrimaryButton>
       </div>
     </Screen>

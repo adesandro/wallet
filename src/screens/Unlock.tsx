@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
 import { TriangleAlert } from 'lucide-react';
 import { OpenInTabButton, PasswordInput, PrimaryButton, Screen, SecondaryButton } from '../ui/components';
 import { useWallet } from '../state/wallet';
@@ -9,6 +10,12 @@ export function Unlock() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [forgotOpen, setForgotOpen] = useState(false);
+
+  useEffect(() => {
+    if (!err) return;
+    const t = window.setTimeout(() => setErr(null), 2400);
+    return () => window.clearTimeout(t);
+  }, [err]);
 
   return (
     <Screen className="relative flex min-h-[520px] flex-col justify-between p-6">
@@ -40,8 +47,29 @@ export function Unlock() {
           <h1 className="mt-5 text-2xl font-semibold tracking-tight text-gray-100">Modulr Wallet</h1>
           <p className="mt-2 text-sm text-gray-400">Enter the password to unlock your wallet</p>
           <div className="mt-8 w-full space-y-3 text-left">
-            <PasswordInput name="password" placeholder="Password" value={password} onChange={setPassword} autoFocus />
-            {err ? <p className="text-sm text-red-200">{err}</p> : null}
+            <PasswordInput
+              name="password"
+              placeholder="Password"
+              value={password}
+              onChange={(v) => {
+                setPassword(v);
+                if (err) setErr(null);
+              }}
+              autoFocus
+              error={!!err}
+            />
+            <AnimatePresence>
+              {err ? (
+                <motion.p
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 4 }}
+                  className="text-sm text-red-200"
+                >
+                  {err}
+                </motion.p>
+              ) : null}
+            </AnimatePresence>
             <PrimaryButton type="submit" loading={loading} disabled={!password || loading} className="py-4 text-base">
               Unlock
             </PrimaryButton>

@@ -1,7 +1,14 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { sessionGet, sessionRemove, sessionSet, storageGet, storageRemove, storageSet } from '../lib/chromeStorage';
-import { deriveVaultKeyRawB64, openVaultJson, openVaultJsonWithKeyB64, sealVaultJson, type VaultEnvelopeV1 } from '../lib/vault';
-import { generateAccount, type GeneratedAccount } from '../lib/crypto/ed25519';
+import {
+  deriveVaultKeyRawB64,
+  openVaultJson,
+  openVaultJsonWithKeyB64,
+  sealVaultJson,
+  sealVaultJsonWithKeyB64,
+  type VaultEnvelopeV1
+} from '../lib/vault';
+import { generateNewDefaultAccount, generateAccountFromMnemonic, type GeneratedAccount } from '../lib/crypto/ed25519';
 import { fetchAccount } from '../lib/nodeApi';
 
 const STORAGE_VAULT_KEY = 'modulr.vault.v1';
@@ -44,6 +51,7 @@ type WalletContextValue = {
   unlock: (password: string) => Promise<void>;
   save: (next: WalletDataV1) => Promise<void>;
   createAccount: () => Promise<void>;
+  importAccountFromSeedPhrase: (params: { name?: string; mnemonic: string; mnemonicPassword?: string }) => Promise<void>;
   selectAccount: (accountId: string) => Promise<void>;
   refreshSelectedAccount: () => Promise<void>;
   selectedAccount: GeneratedAccount | null;
@@ -73,6 +81,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<WalletDataV1 | null>(null);
   const [vault, setVault] = useState<VaultEnvelopeV1 | null>(null);
   const [password, setPassword] = useState<string | null>(null);
+  const [vaultKeyB64, setVaultKeyB64] = useState<string | null>(null);
   const [selectedAccountState, setSelectedAccountState] = useState<{ balance: number; nonce: number } | null>(null);
 
   useEffect(() => {
@@ -93,6 +102,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           const parsed = JSON.parse(json) as WalletDataV1;
           setData(parsed);
           setPassword(null);
+          setVaultKeyB64(cached.keyB64);
           setStatus('unlocked');
           setSelectedAccountState(null);
           return;
@@ -116,15 +126,27 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  const persistWithKey = useCallback(
+    async (keyB64: string, next: WalletDataV1) => {
+      if (!vault) throw new Error('Vault not found');
+      const env = await sealVaultJsonWithKeyB64(vault, keyB64, JSON.stringify(next));
+      await storageSet(STORAGE_VAULT_KEY, env);
+      setVault(env);
+      setData(next);
+    },
+    [vault]
+  );
+
   const createVault = useCallback(
     async (pwd: string) => {
       const first = defaultData();
-      const acct = generateAccount({ name: 'Account 1' });
+      const acct = await generateNewDefaultAccount({ name: 'Account 1' });
       first.accounts = [acct];
       first.selectedAccountId = acct.id;
 
       await persist(pwd, first);
       setPassword(pwd);
+      setVaultKeyB64(null);
       setStatus('unlocked');
       setSelectedAccountState(null);
 
@@ -133,6 +155,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       if (env) {
         const keyB64 = await deriveVaultKeyRawB64(pwd, env);
         await sessionSet(SESSION_UNLOCK_KEY, { until: Date.now() + DEFAULT_UNLOCK_TTL_MS, keyB64 });
+        setVaultKeyB64(keyB64);
       }
     },
     [persist]
@@ -146,12 +169,14 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       const parsed = JSON.parse(json) as WalletDataV1;
       setVault(env);
       setPassword(pwd);
+      setVaultKeyB64(null);
       setData(parsed);
       setStatus('unlocked');
       setSelectedAccountState(null);
 
       const keyB64 = await deriveVaultKeyRawB64(pwd, env);
       await sessionSet(SESSION_UNLOCK_KEY, { until: Date.now() + DEFAULT_UNLOCK_TTL_MS, keyB64 });
+      setVaultKeyB64(keyB64);
     },
     [vault]
   );
@@ -159,6 +184,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const lock = useCallback(() => {
     sessionRemove(SESSION_UNLOCK_KEY).catch(() => {});
     setPassword(null);
+    setVaultKeyB64(null);
     setData(null);
     setSelectedAccountState(null);
     setStatus(vault ? 'locked' : 'needs_onboarding');
@@ -166,20 +192,43 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   const save = useCallback(
     async (next: WalletDataV1) => {
-      if (!password) throw new Error('Wallet is locked');
-      await persist(password, next);
+      if (password) {
+        await persist(password, next);
+        return;
+      }
+      if (vaultKeyB64) {
+        await persistWithKey(vaultKeyB64, next);
+        return;
+      }
+      throw new Error('Wallet is locked');
     },
-    [password, persist]
+    [password, vaultKeyB64, persist, persistWithKey]
   );
 
   const createAccount = useCallback(async () => {
     if (!data) throw new Error('Wallet not unlocked');
     const next = structuredClone(data) as WalletDataV1;
-    const acct = generateAccount({ name: `Account ${next.accounts.length + 1}` });
+    const acct = await generateNewDefaultAccount({ name: `Account ${next.accounts.length + 1}` });
     next.accounts.push(acct);
     next.selectedAccountId = acct.id;
     await save(next);
   }, [data, save]);
+
+  const importAccountFromSeedPhrase = useCallback(
+    async (params: { name?: string; mnemonic: string; mnemonicPassword?: string }) => {
+      if (!data) throw new Error('Wallet not unlocked');
+      const next = structuredClone(data) as WalletDataV1;
+      const acct = await generateAccountFromMnemonic({
+        name: params.name ?? `Imported ${next.accounts.length + 1}`,
+        mnemonic: params.mnemonic,
+        mnemonicPassword: params.mnemonicPassword ?? ''
+      });
+      next.accounts.push(acct);
+      next.selectedAccountId = acct.id;
+      await save(next);
+    },
+    [data, save]
+  );
 
   const selectAccount = useCallback(
     async (accountId: string) => {
@@ -242,6 +291,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     await sessionRemove(SESSION_UNLOCK_KEY);
     setVault(null);
     setPassword(null);
+    setVaultKeyB64(null);
     setData(null);
     setSelectedAccountState(null);
     setStatus('needs_onboarding');
@@ -256,6 +306,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     unlock,
     save,
     createAccount,
+    importAccountFromSeedPhrase,
     selectAccount,
     refreshSelectedAccount,
     selectedAccount,
