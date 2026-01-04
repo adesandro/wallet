@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Modulr Wallet",
+  "version": "0.0.1",
+  "description": "Modulr browser wallet (MVP).",
+  "action": {
+    "default_title": "Modulr Wallet",
+    "default_popup": "index.html",
+    "default_icon": {
+      "16": "brand/modulr.png",
+      "32": "brand/modulr.png",
+      "48": "brand/modulr.png",
+      "128": "brand/modulr.png"
+    }
+  },
+  "icons": {
+    "16": "brand/modulr.png",
+    "32": "brand/modulr.png",
+    "48": "brand/modulr.png",
+    "128": "brand/modulr.png"
+  },
+  "permissions": ["storage"],
+  "host_permissions": ["http://*/*", "https://*/*"]
+}
+
+
