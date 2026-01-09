@@ -1,5 +1,5 @@
+import { AnimatePresence, motion } from 'framer-motion';
 import { useMemo, useState } from 'react';
-import { Sparkles } from 'lucide-react';
 import { OpenInTabButton, PasswordInput, PrimaryButton, Screen } from '../ui/components';
 import { useWallet } from '../state/wallet';
 
@@ -11,6 +11,12 @@ export function Onboarding() {
   const [err, setErr] = useState<string | null>(null);
 
   const canSubmit = useMemo(() => password.length >= 6 && password === password2, [password, password2]);
+  const mismatch = useMemo(() => password.length > 0 && password2.length > 0 && password !== password2, [password, password2]);
+  const helperText = useMemo(() => {
+    if (mismatch) return 'Passwords do not match';
+    if (err) return err;
+    return '';
+  }, [err, mismatch]);
 
   return (
     <Screen>
@@ -35,18 +41,55 @@ export function Onboarding() {
 
         <div className="mt-3 flex flex-col items-center text-center">
           <img
-            src="/brand/footer_logo.png"
+            src="/brand/modulr.svg"
             alt="Modulr"
-            className="h-16 w-16 rounded-2xl border border-white/10 bg-black/30 p-2 shadow-[0_12px_46px_rgba(0,0,0,0.55)]"
+            className="h-20 w-20 rounded-3xl border border-white/10 bg-black/20 p-3 shadow-[0_18px_38px_rgba(0,0,0,0.55)]"
           />
           <h1 className="mt-5 text-2xl font-semibold tracking-tight text-gray-100">Create Wallet</h1>
           <p className="mt-2 text-sm text-gray-400">Choose a password to protect your encrypted storage</p>
         </div>
 
         <div className="mt-6 space-y-3">
-          <PasswordInput name="password" placeholder="Password (min 6 chars)" value={password} onChange={setPassword} autoFocus />
-          <PasswordInput name="password2" placeholder="Repeat password" value={password2} onChange={setPassword2} />
-          {err ? <p className="text-sm text-red-200">{err}</p> : null}
+          <PasswordInput
+            name="password"
+            placeholder="Password (min 6 chars)"
+            value={password}
+            onChange={(v) => {
+              setPassword(v);
+              if (err) setErr(null);
+            }}
+            autoFocus
+          />
+          <PasswordInput
+            name="password2"
+            placeholder="Repeat password"
+            value={password2}
+            onChange={(v) => {
+              setPassword2(v);
+              if (err) setErr(null);
+            }}
+            error={mismatch}
+          />
+          {/* Fixed-height slot so the button never "jumps" when error appears/disappears */}
+          <div className="relative h-5">
+            <AnimatePresence>
+              {helperText ? (
+                <motion.p
+                  key="helper"
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 4 }}
+                  className="absolute inset-0 text-sm leading-5 text-red-200"
+                >
+                  {helperText}
+                </motion.p>
+              ) : (
+                <motion.p key="empty" aria-hidden className="absolute inset-0 text-sm leading-5 text-transparent">
+                  .
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
 
         <div className="mt-5">
@@ -55,15 +98,10 @@ export function Onboarding() {
           </PrimaryButton>
         </div>
 
-        <div className="mt-5 flex items-center justify-center gap-2 text-xs text-gray-500">
-          <Sparkles className="h-3.5 w-3.5" />
-          <span>After unlock, we keep a short session so you won’t retype the password every time.</span>
-        </div>
+        <p className="mt-5 text-center text-xs text-gray-500">
+          Keep your password and recovery phrase in a safe place. We don’t have access to them and can’t help with recovery.
+        </p>
       </form>
-
-      <p className="mt-3 text-xs text-gray-500">
-        Your data will be stored encrypted in the browser storage. For MVP, keep the password safe.
-      </p>
     </Screen>
   );
 }

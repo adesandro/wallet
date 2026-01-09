@@ -4,10 +4,12 @@ import { Eye, EyeOff, Maximize2 } from 'lucide-react';
 
 export function Screen({
   children,
-  className
+  className,
+  variant = 'framed'
 }: {
   children: React.ReactNode;
   className?: string;
+  variant?: 'framed' | 'plain';
 }) {
   return (
     <motion.div
@@ -15,7 +17,12 @@ export function Screen({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -6 }}
       transition={{ duration: 0.22, ease: 'easeOut' }}
-      className={['glow-card gradient-border rounded-2xl p-4', className].filter(Boolean).join(' ')}
+      className={[
+        variant === 'framed' ? 'glow-card gradient-border rounded-2xl p-4' : 'rounded-2xl p-4',
+        className
+      ]
+        .filter(Boolean)
+        .join(' ')}
     >
       {children}
     </motion.div>

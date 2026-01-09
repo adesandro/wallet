@@ -90,5 +90,5 @@ html[data-mode="tab"] .gradient-border::after {
   border: 1px solid rgba(255, 255, 255, 0.05);
   box-shadow: 0 12px 46px rgba(0, 0, 0, 0.55), 0 0 0 1px rgb(var(--brand-accent) / 0.08);
   backdrop-filter: blur(6px);
-}
+  }
 

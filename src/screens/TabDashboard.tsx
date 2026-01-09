@@ -212,7 +212,7 @@ export function TabDashboard({ navigate }: { navigate: (to: 'send' | 'settings')
             Connected sites
           </TabButton>
           <TabButton active={tab === 'usage'} onClick={() => setTab('usage')}>
-            App Usage
+            App usage
           </TabButton>
         </div>
         <div className="text-sm text-gray-400">Node: {wallet.data?.settings.nodeUrl ?? '—'}</div>
@@ -266,7 +266,7 @@ export function TabDashboard({ navigate }: { navigate: (to: 'send' | 'settings')
             </div>
           ) : (
             <div className="flex items-center justify-center rounded-2xl border border-dashed border-white/10 bg-black/10 px-4 py-14 text-sm text-gray-400">
-              App Usage — coming soon.
+              App usage — coming soon.
             </div>
           )}
         </div>

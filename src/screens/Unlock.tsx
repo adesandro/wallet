@@ -58,18 +58,30 @@ export function Unlock() {
               autoFocus
               error={!!err}
             />
-            <AnimatePresence>
-              {err ? (
-                <motion.p
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 4 }}
-                  className="text-sm text-red-200"
-                >
-                  {err}
-                </motion.p>
-              ) : null}
-            </AnimatePresence>
+            {/* Fixed-height slot so the Unlock button never "jumps" when error appears/disappears */}
+            <div className="relative h-5 overflow-hidden">
+              <AnimatePresence>
+                {err ? (
+                  <motion.p
+                    key="helper"
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 4 }}
+                    className="absolute inset-0 text-sm leading-5 text-red-200 whitespace-nowrap"
+                  >
+                    {err}
+                  </motion.p>
+                ) : (
+                  <motion.p
+                    key="empty"
+                    aria-hidden
+                    className="absolute inset-0 text-sm leading-5 text-transparent whitespace-nowrap"
+                  >
+                    .
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </div>
             <PrimaryButton type="submit" loading={loading} disabled={!password || loading} className="py-4 text-base">
               Unlock
             </PrimaryButton>
