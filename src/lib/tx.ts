@@ -73,9 +73,10 @@ export async function buildAndSignTransferTx(params: {
   };
 
   const preimage = txPreimage(draft);
-  const sig = signDetachedBase64(preimage, params.seedB64);
-  const tx = { ...draft, sig };
+  // Modulr-core expects signature over tx hash (BLAKE3(preimage) hex), not over the preimage itself.
   const id = await localTxId(preimage);
+  const sig = signDetachedBase64(id, params.seedB64);
+  const tx = { ...draft, sig };
 
   return { tx, preimage, sig, id };
 }
