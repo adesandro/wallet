@@ -31,11 +31,24 @@ export function txPreimage(tx: Omit<TransferTxDraft, 'payload'> & { payload?: un
 }
 
 export async function localTxId(preimage: string): Promise<string> {
-  const bytes = new TextEncoder().encode(preimage);
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
-  const u8 = new Uint8Array(digest);
+  // Modulr uses BLAKE3 for hashes (32 bytes => 64 hex chars)
+  // Use the concrete browser build to avoid bundlers picking the wrong entry.
+  const { hash: blake3Hash } = await import('blake3-wasm/dist/browser');
+  const out: any = blake3Hash(preimage, { length: 32 });
+
+  // Prefer Buffer-like hex conversion when available.
+  if (out && typeof out.toString === 'function') {
+    try {
+      const hex = out.toString('hex');
+      if (typeof hex === 'string' && hex.length === 64) return hex;
+    } catch {
+      // fall through
+    }
+  }
+
+  const bytes: Uint8Array = out instanceof Uint8Array ? out : new Uint8Array(out);
   let hex = '';
-  for (let i = 0; i < u8.length; i++) hex += u8[i].toString(16).padStart(2, '0');
+  for (let i = 0; i < bytes.length; i++) hex += bytes[i].toString(16).padStart(2, '0');
   return hex;
 }
 
@@ -66,6 +79,7 @@ export async function buildAndSignTransferTx(params: {
 
   return { tx, preimage, sig, id };
 }
+
 
 
 

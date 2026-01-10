@@ -13,6 +13,7 @@
   "dependencies": {
     "@scure/bip32": "^2.0.1",
     "@scure/bip39": "^2.0.1",
+    "blake3-wasm": "2.1.5",
     "bs58": "^6.0.0",
     "framer-motion": "^12.23.26",
     "lucide-react": "^0.562.0",
