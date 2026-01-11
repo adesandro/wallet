@@ -282,7 +282,14 @@ export function TabDashboard({ navigate, onTxClick }: { navigate: (to: 'send' | 
             App usage
           </TabButton>
         </div>
-        <div className="text-sm text-gray-400">Node: {wallet.data?.settings.nodeUrl ?? '—'}</div>
+        <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-1.5">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+          </span>
+          <span className="text-xs text-gray-400">Node</span>
+          <span className="font-mono text-xs text-gray-300">{wallet.data?.settings.nodeUrl ?? '—'}</span>
+        </div>
       </div>
 
       {/* Content */}

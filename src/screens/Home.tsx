@@ -48,7 +48,13 @@ export function Home({ navigate, onTxClick }: { navigate: (to: HomeNav) => void;
         <div className="min-w-0">
           <p className="text-xs uppercase tracking-[0.25em] text-gray-400">Wallet</p>
           <p className="mt-1 text-sm font-semibold text-gray-100">Accounts & Activity</p>
-          <p className="mt-1 truncate text-xs text-gray-500">Node: {nodeUrl}</p>
+          <div className="mt-2 inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/30 px-2.5 py-1">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            </span>
+            <span className="truncate font-mono text-[11px] text-gray-400">{nodeUrl || '—'}</span>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <OpenInTabButton />
