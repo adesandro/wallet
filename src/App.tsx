@@ -1,6 +1,6 @@
 import { AnimatePresence } from 'framer-motion';
 import { useMemo, useState } from 'react';
-import { WalletProvider, useWallet } from './state/wallet';
+import { WalletProvider, useWallet, type WalletTxRecord } from './state/wallet';
 import { Onboarding } from './screens/Onboarding';
 import { Unlock } from './screens/Unlock';
 import { Home, type HomeNav } from './screens/Home';
@@ -8,13 +8,15 @@ import { Settings } from './screens/Settings';
 import { Send, type SendDraft } from './screens/Send';
 import { Confirm } from './screens/Confirm';
 import { TabDashboard } from './screens/TabDashboard';
+import { TxDetails } from './screens/TxDetails';
 
-type Route = HomeNav | 'confirm';
+type Route = HomeNav | 'confirm' | 'tx_details';
 
 function AppInner() {
   const wallet = useWallet();
   const [nav, setNav] = useState<Route>('home');
   const [draft, setDraft] = useState<SendDraft | null>(null);
+  const [selectedTx, setSelectedTx] = useState<WalletTxRecord | null>(null);
   const isTab = useMemo(() => document.documentElement.dataset.mode === 'tab', []);
 
   const screen = useMemo(() => {
@@ -47,6 +49,10 @@ function AppInner() {
               navigate={(to) => {
                 setNav(to);
               }}
+              onTxClick={(tx) => {
+                setSelectedTx(tx);
+                setNav('tx_details');
+              }}
             />
           ) : (
             <Home
@@ -54,8 +60,23 @@ function AppInner() {
               navigate={(to) => {
                 setNav(to);
               }}
+              onTxClick={(tx) => {
+                setSelectedTx(tx);
+                setNav('tx_details');
+              }}
             />
           )
+        ) : null}
+
+        {screen === 'tx_details' && selectedTx ? (
+          <TxDetails
+            key="tx_details"
+            tx={selectedTx}
+            back={() => {
+              setSelectedTx(null);
+              setNav('home');
+            }}
+          />
         ) : null}
 
         {screen === 'settings' ? (

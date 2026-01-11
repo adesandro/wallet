@@ -10,6 +10,7 @@ import {
 } from '../lib/vault';
 import { generateNewDefaultAccount, generateAccountFromMnemonic, type GeneratedAccount } from '../lib/crypto/ed25519';
 import { fetchAccount } from '../lib/nodeApi';
+import { generateMockTxs } from '../lib/mockTxs';
 
 const STORAGE_VAULT_KEY = 'modulr.vault.v1';
 const SESSION_UNLOCK_KEY = 'modulr.session.unlock.v1';
@@ -45,6 +46,7 @@ type WalletStatus = 'loading' | 'needs_onboarding' | 'locked' | 'unlocked';
 type WalletContextValue = {
   status: WalletStatus;
   data: WalletDataV1 | null;
+  txs: WalletTxRecord[];
   lock: () => void;
   reset: () => Promise<void>;
   createVault: (password: string) => Promise<void>;
@@ -83,6 +85,15 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [password, setPassword] = useState<string | null>(null);
   const [vaultKeyB64, setVaultKeyB64] = useState<string | null>(null);
   const [selectedAccountState, setSelectedAccountState] = useState<{ balance: number; nonce: number } | null>(null);
+  const mockMode = useMemo(() => {
+    try {
+      if (!(import.meta as any).env?.DEV) return false;
+      const url = new URL(window.location.href);
+      return url.searchParams.get('mock') === '1';
+    } catch {
+      return false;
+    }
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -245,6 +256,16 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     return data.accounts.find((a) => a.id === data.selectedAccountId) ?? null;
   }, [data]);
 
+  const txs = useMemo(() => {
+    const real = data?.txs ?? [];
+    if (!mockMode || !data) return real;
+    const fromPub = selectedAccount?.pub ?? data.accounts[0]?.pub;
+    if (!fromPub) return real;
+    const mock = generateMockTxs({ fromPub, nodeUrl: data.settings.nodeUrl });
+    // Show real txs first (if any), then demo data.
+    return [...real, ...mock];
+  }, [data, mockMode, selectedAccount?.pub]);
+
   const refreshSelectedAccount = useCallback(async () => {
     if (!data || !selectedAccount) return;
     const nodeUrl = data.settings.nodeUrl;
@@ -300,6 +321,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const value: WalletContextValue = {
     status,
     data,
+    txs,
     lock,
     reset,
     createVault,

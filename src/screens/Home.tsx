@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, ChevronDown, Copy, Lock, Plus, RefreshCw, Send, Settings } from 'lucide-react';
-import { useWallet } from '../state/wallet';
+import { useWallet, type WalletTxRecord } from '../state/wallet';
 import { OpenInTabButton, PrimaryButton, Screen, SecondaryButton } from '../ui/components';
 
 function shorten(value: string, left = 8, right = 8) {
@@ -12,7 +12,7 @@ function shorten(value: string, left = 8, right = 8) {
 
 export type HomeNav = 'home' | 'send' | 'settings';
 
-export function Home({ navigate }: { navigate: (to: HomeNav) => void }) {
+export function Home({ navigate, onTxClick }: { navigate: (to: HomeNav) => void; onTxClick?: (tx: WalletTxRecord) => void }) {
   const wallet = useWallet();
   const selected = wallet.selectedAccount;
   const [copied, setCopied] = useState(false);
@@ -27,7 +27,7 @@ export function Home({ navigate }: { navigate: (to: HomeNav) => void }) {
   const balance = wallet.selectedAccountState?.balance ?? null;
   const nonce = wallet.selectedAccountState?.nonce ?? null;
 
-  const txs = wallet.data?.txs ?? [];
+  const txs = wallet.txs ?? [];
   const nodeUrl = wallet.data?.settings.nodeUrl ?? '';
 
   const txPreview = useMemo(() => txs.slice(0, 6), [txs]);
@@ -207,12 +207,14 @@ export function Home({ navigate }: { navigate: (to: HomeNav) => void }) {
         ) : (
           <div className="mt-3 space-y-2">
             {txPreview.map((t) => (
-              <div
+              <button
                 key={t.id}
-                className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 transition hover:border-brand-accent/30"
+                type="button"
+                className="block w-full cursor-pointer rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-left transition hover:border-brand-accent/30"
+                onClick={() => onTxClick?.(t)}
               >
                 <div className="flex items-center justify-between gap-3">
-                  <p className="truncate font-mono text-xs text-gray-200" title={t.id}>
+                  <p className="truncate font-mono text-xs text-brand-accent" title={t.id}>
                     {shorten(t.id, 10, 10)}
                   </p>
                   <span
@@ -225,14 +227,14 @@ export function Home({ navigate }: { navigate: (to: HomeNav) => void }) {
                           : 'border-white/10 bg-black/20 text-gray-300'
                     ].join(' ')}
                   >
-                    {t.status}
+                    {t.status === 'submitted' ? 'Success' : t.status === 'failed' ? 'Failed' : t.status === 'created' ? 'Created' : t.status}
                   </span>
                 </div>
                 <p className="mt-1 text-xs text-gray-400">
                   {shorten(t.from)} → {shorten(t.to)} · amt {t.amount} · fee {t.fee}
                 </p>
                 {t.error ? <p className="mt-1 text-xs text-red-200">{t.error}</p> : null}
-              </div>
+              </button>
             ))}
           </div>
         )}

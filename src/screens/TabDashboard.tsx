@@ -28,7 +28,70 @@ function TabButton({ active, children, onClick }: { active: boolean; children: s
   );
 }
 
-export function TabDashboard({ navigate }: { navigate: (to: 'send' | 'settings') => void }) {
+import type { WalletTxRecord } from '../state/wallet';
+
+const PAGE_SIZES = [10, 25, 50] as const;
+
+function PageSizeSelect({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => {
+      if (!ref.current) return;
+      if (e.target instanceof Node && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex min-w-[130px] items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/40 px-4 py-2 text-sm text-gray-200 transition hover:border-brand-accent/30"
+      >
+        <span>{value} / page</span>
+        <ChevronDown className={['h-4 w-4 text-gray-400 transition', open ? 'rotate-180' : ''].join(' ')} />
+      </button>
+      <AnimatePresence>
+        {open ? (
+          <motion.div
+            initial={{ opacity: 0, y: 4, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 4, scale: 0.98 }}
+            transition={{ duration: 0.14, ease: 'easeOut' }}
+            className="absolute right-0 top-full z-30 mt-2 min-w-[130px] overflow-hidden rounded-xl border border-white/10 bg-black/80 backdrop-blur"
+          >
+            {PAGE_SIZES.map((s) => {
+              const active = s === value;
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  className={[
+                    'flex w-full items-center justify-between gap-3 px-4 py-2 text-left text-sm transition',
+                    active ? 'bg-brand-accent/10 text-gray-100' : 'text-gray-300 hover:bg-white/5'
+                  ].join(' ')}
+                  onClick={() => {
+                    onChange(s);
+                    setOpen(false);
+                  }}
+                >
+                  <span>{s} / page</span>
+                  {active ? <Check className="h-4 w-4 text-brand-accent" /> : null}
+                </button>
+              );
+            })}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+export function TabDashboard({ navigate, onTxClick }: { navigate: (to: 'send' | 'settings') => void; onTxClick?: (tx: WalletTxRecord) => void }) {
   const wallet = useWallet();
   const accounts = wallet.data?.accounts ?? [];
   const selected = wallet.selectedAccount;
@@ -56,9 +119,13 @@ export function TabDashboard({ navigate }: { navigate: (to: 'send' | 'settings')
 
   const balance = wallet.selectedAccountState?.balance ?? null;
   const nonce = wallet.selectedAccountState?.nonce ?? null;
-  const txs = wallet.data?.txs ?? [];
+  const txs = wallet.txs ?? [];
 
-  const txPreview = useMemo(() => txs.slice(0, 24), [txs]);
+  // Pagination state
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZES[0]);
+  const totalPages = Math.max(1, Math.ceil(txs.length / pageSize));
+  const txPage = useMemo(() => txs.slice(page * pageSize, (page + 1) * pageSize), [txs, page, pageSize]);
 
   return (
     <div className="w-full">
@@ -219,13 +286,22 @@ export function TabDashboard({ navigate }: { navigate: (to: 'send' | 'settings')
       </div>
 
       {/* Content */}
-      <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_380px]">
+      <div className="mt-8 grid items-start gap-6 lg:grid-cols-[1fr_380px]">
         <div className="rounded-3xl border border-white/10 bg-black/20 p-6">
           {tab === 'transactions' ? (
             <>
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-[11px] uppercase tracking-[0.18em] text-gray-400">Latest transactions</p>
-                <span className="text-xs text-gray-500">Total: {txs.length}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-gray-500">Total: {txs.length}</span>
+                  <PageSizeSelect
+                    value={pageSize}
+                    onChange={(v) => {
+                      setPageSize(v);
+                      setPage(0);
+                    }}
+                  />
+                </div>
               </div>
 
               <div className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-black/20">
@@ -237,13 +313,18 @@ export function TabDashboard({ navigate }: { navigate: (to: 'send' | 'settings')
                   <span className="col-span-1 text-right">Fee</span>
                 </div>
 
-                {txPreview.length === 0 ? (
+                {txPage.length === 0 ? (
                   <div className="flex items-center justify-center px-4 py-14 text-sm text-gray-400">No transactions yet.</div>
                 ) : (
                   <div className="divide-y divide-white/5">
-                    {txPreview.map((t) => (
-                      <div key={t.id} className="grid grid-cols-12 gap-3 px-4 py-3 text-sm text-gray-200 hover:bg-white/5">
-                        <div className="col-span-4 truncate font-mono text-xs" title={t.id}>
+                    {txPage.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        className="grid w-full cursor-pointer grid-cols-12 gap-3 px-4 py-3 text-left text-sm text-gray-200 transition hover:bg-white/5"
+                        onClick={() => onTxClick?.(t)}
+                      >
+                        <div className="col-span-4 truncate font-mono text-xs text-brand-accent" title={t.id}>
                           {shorten(t.id, 14, 10)}
                         </div>
                         <div className="col-span-3 truncate font-mono text-xs" title={t.from}>
@@ -254,11 +335,36 @@ export function TabDashboard({ navigate }: { navigate: (to: 'send' | 'settings')
                         </div>
                         <div className="col-span-1 text-right font-mono text-xs">{t.amount}</div>
                         <div className="col-span-1 text-right font-mono text-xs">{t.fee}</div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 )}
               </div>
+
+              {/* Pagination controls */}
+              {txs.length > pageSize ? (
+                <div className="mt-4 flex items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    disabled={page === 0}
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    className="rounded-lg border border-white/10 bg-black/30 px-4 py-2 text-xs font-semibold text-gray-200 transition hover:border-brand-accent/40 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-xs text-gray-400">
+                    Page {page + 1} of {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={page >= totalPages - 1}
+                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                    className="rounded-lg border border-white/10 bg-black/30 px-4 py-2 text-xs font-semibold text-gray-200 transition hover:border-brand-accent/40 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Next
+                  </button>
+                </div>
+              ) : null}
             </>
           ) : tab === 'connected' ? (
             <div className="flex items-center justify-center rounded-2xl border border-dashed border-white/10 bg-black/10 px-4 py-14 text-sm text-gray-400">
@@ -271,7 +377,7 @@ export function TabDashboard({ navigate }: { navigate: (to: 'send' | 'settings')
           )}
         </div>
 
-        <div className="rounded-3xl border border-white/10 bg-black/20 p-6">
+        <div className="self-start rounded-3xl border border-white/10 bg-black/20 p-6">
           <div className="flex items-center justify-between gap-3">
             <p className="text-[11px] uppercase tracking-[0.18em] text-gray-400">Account stats</p>
             <button
