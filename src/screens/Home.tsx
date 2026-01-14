@@ -17,12 +17,10 @@ export function Home({ navigate, onTxClick }: { navigate: (to: HomeNav) => void;
   const selected = wallet.selectedAccount;
   const [copied, setCopied] = useState(false);
   const [acctOpen, setAcctOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const acctRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    wallet.refreshSelectedAccount();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wallet.data?.selectedAccountId, wallet.data?.settings.nodeUrl]);
+  // Auto-refresh is now handled by WalletProvider
 
   const balance = wallet.selectedAccountState?.balance ?? null;
   const nonce = wallet.selectedAccountState?.nonce ?? null;
@@ -79,13 +77,23 @@ export function Home({ navigate, onTxClick }: { navigate: (to: HomeNav) => void;
         <div className="flex items-center justify-between gap-3">
           <p className="text-[11px] uppercase tracking-[0.18em] text-gray-400">Active account</p>
           <button
-            className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/30 px-2 py-1 text-xs text-gray-200 transition hover:border-brand-accent/40"
+            className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/30 px-2 py-1 text-xs text-gray-200 transition hover:border-brand-accent/40 disabled:opacity-50"
+            disabled={refreshing}
             onClick={async () => {
-              await wallet.refreshSelectedAccount();
+              setRefreshing(true);
+              try {
+                // Min delay so animation is noticeable
+                await Promise.all([
+                  wallet.refreshSelectedAccount(),
+                  new Promise((r) => setTimeout(r, 600))
+                ]);
+              } finally {
+                setRefreshing(false);
+              }
             }}
           >
-            <RefreshCw className="h-3.5 w-3.5" />
-            Refresh
+            <RefreshCw className={['h-3.5 w-3.5 transition-transform', refreshing ? 'animate-spin' : ''].join(' ')} />
+            {refreshing ? 'Refreshing…' : 'Refresh'}
           </button>
         </div>
 
@@ -143,7 +151,6 @@ export function Home({ navigate, onTxClick }: { navigate: (to: HomeNav) => void;
                         onClick={async () => {
                           setAcctOpen(false);
                           await wallet.selectAccount(a.id);
-                          await wallet.refreshSelectedAccount();
                         }}
                       >
                         <div className="min-w-0">

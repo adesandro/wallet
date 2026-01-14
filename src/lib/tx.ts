@@ -1,3 +1,5 @@
+import { blake3 } from '@noble/hashes/blake3.js';
+import { bytesToHex } from '@noble/hashes/utils.js';
 import { stableJsonStringify } from './codec';
 import { signDetachedBase64 } from './crypto/ed25519';
 
@@ -30,29 +32,15 @@ export function txPreimage(tx: Omit<TransferTxDraft, 'payload'> & { payload?: un
   ].join(':');
 }
 
-export async function localTxId(preimage: string): Promise<string> {
+export function localTxId(preimage: string): string {
   // Modulr uses BLAKE3 for hashes (32 bytes => 64 hex chars)
-  // Use the concrete browser build to avoid bundlers picking the wrong entry.
-  const { hash: blake3Hash } = await import('blake3-wasm/dist/browser');
-  const out: any = blake3Hash(preimage, { length: 32 });
-
-  // Prefer Buffer-like hex conversion when available.
-  if (out && typeof out.toString === 'function') {
-    try {
-      const hex = out.toString('hex');
-      if (typeof hex === 'string' && hex.length === 64) return hex;
-    } catch {
-      // fall through
-    }
-  }
-
-  const bytes: Uint8Array = out instanceof Uint8Array ? out : new Uint8Array(out);
-  let hex = '';
-  for (let i = 0; i < bytes.length; i++) hex += bytes[i].toString(16).padStart(2, '0');
-  return hex;
+  const encoder = new TextEncoder();
+  const inputBytes = encoder.encode(preimage);
+  const hash = blake3(inputBytes);
+  return bytesToHex(hash);
 }
 
-export async function buildAndSignTransferTx(params: {
+export function buildAndSignTransferTx(params: {
   from: string;
   seedB64: string;
   to: string;
@@ -74,7 +62,7 @@ export async function buildAndSignTransferTx(params: {
 
   const preimage = txPreimage(draft);
   // Modulr-core expects signature over tx hash (BLAKE3(preimage) hex), not over the preimage itself.
-  const id = await localTxId(preimage);
+  const id = localTxId(preimage);
   const sig = signDetachedBase64(id, params.seedB64);
   const tx = { ...draft, sig };
 

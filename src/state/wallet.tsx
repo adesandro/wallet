@@ -245,8 +245,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     async (accountId: string) => {
       if (!data) throw new Error('Wallet not unlocked');
       const next = { ...data, selectedAccountId: accountId };
+      setSelectedAccountState(null); // Clear immediately, useEffect will fetch new data
       await save(next);
-      setSelectedAccountState(null);
     },
     [data, save]
   );
@@ -256,26 +256,65 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     return data.accounts.find((a) => a.id === data.selectedAccountId) ?? null;
   }, [data]);
 
+  // Track the current fetch request to prevent race conditions
+  const fetchRequestIdRef = React.useRef(0);
+
   const txs = useMemo(() => {
     const real = data?.txs ?? [];
-    if (!mockMode || !data) return real;
-    const fromPub = selectedAccount?.pub ?? data.accounts[0]?.pub;
-    if (!fromPub) return real;
+    const accountPub = selectedAccount?.pub;
+    
+    // Filter transactions by selected account (from or to)
+    const filtered = accountPub 
+      ? real.filter((t) => t.from === accountPub || t.to === accountPub)
+      : real;
+    
+    if (!mockMode || !data) return filtered;
+    const fromPub = accountPub ?? data.accounts[0]?.pub;
+    if (!fromPub) return filtered;
     const mock = generateMockTxs({ fromPub, nodeUrl: data.settings.nodeUrl });
     // Show real txs first (if any), then demo data.
-    return [...real, ...mock];
+    return [...filtered, ...mock];
   }, [data, mockMode, selectedAccount?.pub]);
 
   const refreshSelectedAccount = useCallback(async () => {
     if (!data || !selectedAccount) return;
     const nodeUrl = data.settings.nodeUrl;
+    const accountPub = selectedAccount.pub;
+    const requestId = ++fetchRequestIdRef.current;
     try {
-      const state = await fetchAccount(nodeUrl, selectedAccount.pub);
-      setSelectedAccountState(state);
+      const state = await fetchAccount(nodeUrl, accountPub);
+      // Only update if this is still the latest request
+      if (requestId === fetchRequestIdRef.current) {
+        setSelectedAccountState(state);
+      }
     } catch {
-      setSelectedAccountState(null);
+      if (requestId === fetchRequestIdRef.current) {
+        setSelectedAccountState(null);
+      }
     }
   }, [data, selectedAccount]);
+
+  // Auto-refresh account state when selected account or node URL changes
+  useEffect(() => {
+    if (status !== 'unlocked' || !selectedAccount || !data?.settings.nodeUrl) return;
+    
+    const nodeUrl = data.settings.nodeUrl;
+    const accountPub = selectedAccount.pub;
+    const requestId = ++fetchRequestIdRef.current;
+
+    (async () => {
+      try {
+        const state = await fetchAccount(nodeUrl, accountPub);
+        if (requestId === fetchRequestIdRef.current) {
+          setSelectedAccountState(state);
+        }
+      } catch {
+        if (requestId === fetchRequestIdRef.current) {
+          setSelectedAccountState(null);
+        }
+      }
+    })();
+  }, [status, selectedAccount?.pub, data?.settings.nodeUrl]);
 
   const setNodeUrl = useCallback(
     async (url: string) => {
@@ -286,25 +325,33 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     [data, save]
   );
 
+  // Use a ref to always have access to the latest data for tx operations
+  const dataRef = React.useRef(data);
+  React.useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
+
   const addTx = useCallback(
     async (tx: WalletTxRecord) => {
-      if (!data) throw new Error('Wallet not unlocked');
-      const next = structuredClone(data) as WalletDataV1;
+      const current = dataRef.current;
+      if (!current) throw new Error('Wallet not unlocked');
+      const next = structuredClone(current) as WalletDataV1;
       next.txs.unshift(tx);
       await save(next);
     },
-    [data, save]
+    [save]
   );
 
   const updateTx = useCallback(
     async (id: string, patch: Partial<WalletTxRecord>) => {
-      if (!data) throw new Error('Wallet not unlocked');
-      const next = structuredClone(data) as WalletDataV1;
+      const current = dataRef.current;
+      if (!current) throw new Error('Wallet not unlocked');
+      const next = structuredClone(current) as WalletDataV1;
       const idx = next.txs.findIndex((t) => t.id === id);
       if (idx >= 0) next.txs[idx] = { ...next.txs[idx], ...patch };
       await save(next);
     },
-    [data, save]
+    [save]
   );
 
   const reset = useCallback(async () => {

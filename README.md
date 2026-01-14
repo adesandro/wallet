@@ -1,39 +1,81 @@
 # Modulr Wallet (Browser Extension)
 
-Modulr Wallet is a Chrome/Chromium browser extension (MV3) built with React + Vite + TypeScript.
+Modulr Wallet is a secure Chrome/Chromium browser extension (Manifest V3) for the Modulr blockchain. Built with React + Vite + TypeScript.
 
-## Features (MVP)
+## Features
 
-- Encrypted local vault (password unlock)
-- Account generation/import (seed phrase) + JSON export
-- Send transfer transactions via node API
-- Full-screen (tab) mode
+- 🔐 **Encrypted local vault** — Password-protected storage using AES-GCM
+- 👛 **Multiple accounts** — Create and manage multiple wallet addresses
+- 📥 **Import/Export** — Import from seed phrase, export accounts as JSON
+- 💸 **Send transactions** — Transfer funds with custom fees and memos
+- 🖥️ **Full-screen mode** — Dashboard view in a new browser tab
+- 🔒 **Session unlock** — Stay unlocked for 15 minutes after login
 
-## Prerequisites
+## Security
 
-- Node.js + npm
+- Private keys are encrypted with your password and never leave your device
+- Uses industry-standard cryptography: ed25519, BIP39/BIP32, BLAKE3
+- No analytics, no tracking, no external data collection
+- Open source — audit the code yourself
 
-## Install
+## Installation
+
+### From Chrome Web Store
+*(Coming soon)*
+
+### Manual Installation (Developer Mode)
+
+1. Clone this repository
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Build the extension:
+   ```bash
+   npm run build
+   ```
+4. Open Chrome and go to `chrome://extensions`
+5. Enable **Developer mode** (toggle in top right)
+6. Click **Load unpacked**
+7. Select the `dist/` folder
+
+## Configuration
+
+1. Open the wallet popup
+2. Go to **Settings**
+3. Set your **Node URL** (default: `http://localhost:7332`)
+
+## Development
 
 ```bash
+# Install dependencies
 npm install
-```
 
-## Build
+# Run dev server (for testing in browser)
+npm run dev
 
-```bash
+# Build for production
 npm run build
+
+# Run tests
+npm test
 ```
 
-The build output is in `dist/`.
+## Cryptography
 
-## Load into Chrome (unpacked)
+This wallet uses the same cryptographic primitives as the Modulr blockchain:
 
-1. Open `chrome://extensions`
-2. Enable **Developer mode**
-3. Click **Load unpacked**
-4. Select the `dist/` folder
+- **Key derivation**: BIP39 mnemonic → BIP32 HD path `m/44'/7337'/0'/0'`
+- **Signing**: ed25519 (via tweetnacl)
+- **Hashing**: BLAKE3 for transaction IDs
+- **Encryption**: AES-256-GCM with PBKDF2 key derivation
 
-## Configure node URL
+## Privacy
 
-Open the wallet → **Settings** → set your node URL (default: `http://localhost:7332`).
+See [PRIVACY_POLICY.md](./PRIVACY_POLICY.md) for details.
+
+**TL;DR**: All data stays on your device. We don't collect anything.
+
+## License
+
+MIT

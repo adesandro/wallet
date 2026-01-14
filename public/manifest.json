@@ -1,23 +1,24 @@
 {
   "manifest_version": 3,
   "name": "Modulr Wallet",
-  "version": "0.0.1",
-  "description": "Modulr browser wallet (MVP).",
+  "version": "1.0.0",
+  "description": "Secure cryptocurrency wallet for the Modulr blockchain. Send transactions, manage multiple accounts, and keep your keys safe with encrypted local storage.",
+  "homepage_url": "https://modulr.cloud",
   "action": {
     "default_title": "Modulr Wallet",
     "default_popup": "index.html",
     "default_icon": {
-      "16": "brand/modulr.png",
-      "32": "brand/modulr.png",
-      "48": "brand/modulr.png",
-      "128": "brand/modulr.png"
+      "16": "brand/icon-16.png",
+      "32": "brand/icon-32.png",
+      "48": "brand/icon-48.png",
+      "128": "brand/icon-128.png"
     }
   },
   "icons": {
-    "16": "brand/modulr.png",
-    "32": "brand/modulr.png",
-    "48": "brand/modulr.png",
-    "128": "brand/modulr.png"
+    "16": "brand/icon-16.png",
+    "32": "brand/icon-32.png",
+    "48": "brand/icon-48.png",
+    "128": "brand/icon-128.png"
   },
   "permissions": ["storage"],
   "host_permissions": ["http://*/*", "https://*/*"]

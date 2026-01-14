@@ -102,11 +102,9 @@ export function TabDashboard({ navigate, onTxClick }: { navigate: (to: 'send' | 
   const [qrOpen, setQrOpen] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    wallet.refreshSelectedAccount();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wallet.data?.selectedAccountId, wallet.data?.settings.nodeUrl]);
+  // Auto-refresh is now handled by WalletProvider
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -168,7 +166,6 @@ export function TabDashboard({ navigate, onTxClick }: { navigate: (to: 'send' | 
                               onClick={async () => {
                                 setAcctOpen(false);
                                 await wallet.selectAccount(a.id);
-                                await wallet.refreshSelectedAccount();
                               }}
                             >
                               <div className="min-w-0">
@@ -389,11 +386,23 @@ export function TabDashboard({ navigate, onTxClick }: { navigate: (to: 'send' | 
             <p className="text-[11px] uppercase tracking-[0.18em] text-gray-400">Account stats</p>
             <button
               type="button"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-gray-200 transition hover:border-brand-accent/40"
-              onClick={() => wallet.refreshSelectedAccount()}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-gray-200 transition hover:border-brand-accent/40 disabled:opacity-50"
+              disabled={refreshing}
+              onClick={async () => {
+                setRefreshing(true);
+                try {
+                  // Min delay so animation is noticeable
+                  await Promise.all([
+                    wallet.refreshSelectedAccount(),
+                    new Promise((r) => setTimeout(r, 600))
+                  ]);
+                } finally {
+                  setRefreshing(false);
+                }
+              }}
             >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Refresh
+              <RefreshCw className={['h-3.5 w-3.5 transition-transform', refreshing ? 'animate-spin' : ''].join(' ')} />
+              {refreshing ? 'Refreshing…' : 'Refresh'}
             </button>
           </div>
 

@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
-import { ArrowLeft, Copy, ExternalLink } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, Copy, ExternalLink, Loader2, RefreshCw } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { SecondaryButton, PrimaryButton } from '../ui/components';
-import type { WalletTxRecord } from '../state/wallet';
+import { useWallet, type WalletTxRecord } from '../state/wallet';
+import { fetchTransaction, type TransactionReceipt } from '../lib/nodeApi';
 
 const EXPLORER_BASE = 'https://testnet.explorer.modulr.cloud';
 
@@ -11,16 +12,76 @@ function formatTime(ts: number) {
   return d.toLocaleString();
 }
 
+type NodeStatus = 'loading' | 'pending' | 'confirmed' | 'failed' | 'error';
+
 export function TxDetails({ tx, back }: { tx: WalletTxRecord; back: () => void }) {
+  const wallet = useWallet();
   const explorerUrl = `${EXPLORER_BASE}/tx/${tx.id}`;
   const isTab = useMemo(() => document.documentElement.dataset.mode === 'tab', []);
   const [copied, setCopied] = useState<string | null>(null);
+
+  // Real status from node
+  const [nodeStatus, setNodeStatus] = useState<NodeStatus>('loading');
+  const [receipt, setReceipt] = useState<TransactionReceipt | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
+
+  const nodeUrl = wallet.data?.settings.nodeUrl ?? '';
+
+  const fetchStatus = async () => {
+    if (!nodeUrl || !tx.id) {
+      setNodeStatus('error');
+      setStatusError('No node URL configured');
+      return;
+    }
+
+    setNodeStatus('loading');
+    setStatusError(null);
+
+    const result = await fetchTransaction(nodeUrl, tx.id);
+
+    if (result.found) {
+      setReceipt(result.data.receipt);
+      setNodeStatus(result.data.receipt.success ? 'confirmed' : 'failed');
+    } else {
+      // Not found = still pending in mempool or never submitted
+      setReceipt(null);
+      if (result.error && !result.error.includes('Not found')) {
+        setNodeStatus('error');
+        setStatusError(result.error);
+      } else {
+        setNodeStatus('pending');
+      }
+    }
+  };
+
+  useEffect(() => {
+    fetchStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tx.id, nodeUrl]);
 
   const copyValue = async (value: string, key: string) => {
     await navigator.clipboard.writeText(value);
     setCopied(key);
     setTimeout(() => setCopied(null), 900);
   };
+
+  // Determine display status
+  const statusDisplay = useMemo(() => {
+    if (nodeStatus === 'loading') {
+      return { label: 'Checking…', className: 'border-white/10 bg-black/20 text-gray-300' };
+    }
+    if (nodeStatus === 'confirmed') {
+      return { label: 'Confirmed', className: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200' };
+    }
+    if (nodeStatus === 'failed') {
+      return { label: 'Failed', className: 'border-red-500/30 bg-red-500/10 text-red-200' };
+    }
+    if (nodeStatus === 'pending') {
+      return { label: 'Pending', className: 'border-amber-500/30 bg-amber-500/10 text-amber-200' };
+    }
+    // error
+    return { label: 'Unknown', className: 'border-white/10 bg-black/20 text-gray-300' };
+  }, [nodeStatus]);
 
   return (
     <motion.div
@@ -60,20 +121,48 @@ export function TxDetails({ tx, back }: { tx: WalletTxRecord; back: () => void }
 
       {/* Status row */}
       <div className="mt-8 flex flex-wrap items-center gap-4">
-        <span
-          className={[
-            'rounded-full border px-4 py-2 text-sm font-semibold',
-            tx.status === 'submitted'
-              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
-              : tx.status === 'failed'
-                ? 'border-red-500/30 bg-red-500/10 text-red-200'
-                : 'border-white/10 bg-black/20 text-gray-300'
-          ].join(' ')}
-        >
-          {tx.status === 'submitted' ? 'Success' : tx.status === 'failed' ? 'Failed' : tx.status === 'created' ? 'Created' : tx.status}
+        <span className={['rounded-full border px-4 py-2 text-sm font-semibold', statusDisplay.className].join(' ')}>
+          {nodeStatus === 'loading' ? (
+            <span className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              {statusDisplay.label}
+            </span>
+          ) : (
+            statusDisplay.label
+          )}
         </span>
         <span className="text-sm text-gray-400">{formatTime(tx.time)}</span>
+        <button
+          type="button"
+          onClick={fetchStatus}
+          disabled={nodeStatus === 'loading'}
+          className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-black/30 px-3 py-1.5 text-xs text-gray-200 transition hover:border-brand-accent/40 disabled:opacity-50"
+        >
+          <RefreshCw className={['h-3.5 w-3.5', nodeStatus === 'loading' ? 'animate-spin' : ''].join(' ')} />
+          Refresh
+        </button>
       </div>
+
+      {/* Status error */}
+      {statusError ? (
+        <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3">
+          <p className="text-xs text-red-200">Failed to fetch status: {statusError}</p>
+        </div>
+      ) : null}
+
+      {/* Receipt info (if confirmed) */}
+      {receipt ? (
+        <div className="mt-4 flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2">
+            <span className="text-xs text-gray-400">Block</span>
+            <span className="font-mono text-xs text-gray-200">{receipt.block}</span>
+          </div>
+          <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2">
+            <span className="text-xs text-gray-400">Position</span>
+            <span className="font-mono text-xs text-gray-200">{receipt.position}</span>
+          </div>
+        </div>
+      ) : null}
 
       {/* Main content */}
       <div className="mt-8">
@@ -219,10 +308,10 @@ export function TxDetails({ tx, back }: { tx: WalletTxRecord; back: () => void }
               </div>
             ) : null}
 
-            {/* Error */}
+            {/* Local error (from wallet) */}
             {tx.error ? (
               <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-4">
-                <p className="text-xs font-medium tracking-wide text-red-200/80">Error</p>
+                <p className="text-xs font-medium tracking-wide text-red-200/80">Local Error</p>
                 <p className="mt-2 text-sm text-red-200">{tx.error}</p>
               </div>
             ) : null}
